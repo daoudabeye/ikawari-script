@@ -1,0 +1,100 @@
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+helmDefaults:
+  #kubeContext: dev.ibi.local
+  cleanupOnFail: true
+  wait: false
+  timeout: 300
+  #recreatePods: true
+  force: false
+  historyMax: 10
+  createNamespace: true
+
+#releases:
+#  - name: create-ip-pools
+#    chart: ../../charts/raw
+#    version: 0.2.5
+#    namespace: ikawari
+#    createNamespace: false
+#    wait: false
+#    labels:
+#      tenant: true
+#    values:
+#      - ../common/resources.yaml.gotmpl
+releases:
+
+  - name: ikawarinode
+    chart: ../charts/ikawarinode
+    version: 0.1.0
+    namespace:  ikawari
+    createNamespace: true
+    wait: true
+    values:
+      - podAnnotations: {
+        "cni.projectcalico.org/ipAddrs": "[\"10.1.156.86\"]"
+      }
+      - whitelist:
+          - peer:
+            ip: 10.1.156.86
+            port: 35001
+          - peer:
+            ip: 10.1.156.87
+            port: 35001
+          - peer:
+            ip: 10.1.156.88
+            port: 35001
+          - peer:
+            ip: 10.1.156.89
+            port: 35001
+          - peer:
+            ip: 10.1.156.90
+            port: 35001
+
+  - name: ikawarinode1
+    chart: ../charts/ikawarinode
+    version: 0.1.0
+    namespace:  ikawari
+    createNamespace: true
+    wait: true
+    values:
+      - podAnnotations: {
+        "cni.projectcalico.org/ipAddrs": "[\"10.1.156.87\"]"
+      }
+      - whitelist:
+          - peer:
+            ip: 10.1.156.86
+            port: 35001
+          - peer:
+            ip: 10.1.156.87
+            port: 35001
+          - peer:
+            ip: 10.1.156.88
+            port: 35001
+          - peer:
+            ip: 10.1.156.89
+            port: 35001
+          - peer:
+            ip: 10.1.156.90
+            port: 35001
+
+  - name: ikawari-indexer
+    chart: ../charts/indexer
+    version: 0.1.0
+    namespace: ikawari
+    createNamespace: true
+    wait: true
+
+#  - name: nbxplorer
+#    chart: ../charts/nbxplorer
+#    version: 0.1.0
+#    namespace: ikawari
+#    createNamespace: true
+#    wait: true
+#    values:
+#      - podAnnotations: {
+#        "cni.projectcalico.org/ipAddrs": "[\"10.1.156.89\"]"
+#      }
+#    needs:
+#      - postgres

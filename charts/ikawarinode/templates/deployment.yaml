@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ikawarinode.fullname" . }}
+  labels:
+    {{- include "ikawarinode.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ikawarinode.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ikawarinode.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ikawarinode.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - -server={{ .Values.network.rpc.server }}
+            - -txindex={{ .Values.network.tx_index }}
+            - -mine={{ .Values.miner.mine }}
+            - -regtest={{ .Values.node.regtest }}
+            - -testnet={{ .Values.node.testnet }}
+            - -port={{ .Values.network.port }}
+            - -rpcport={{ .Values.network.rpc.rpc_port }}
+            - -rpcbind={{ .Values.network.rpc.rpc_bind }}
+            - -rpcuser={{ .Values.network.rpc.user }}
+            - -rpcpassword={{ .Values.network.rpc.password }}
+            {{ range $key, $value := .Values.network.rpc.allow_ip }}
+            - -rpcallowip={{ $value.ip }}
+            {{ end }}
+            {{ range $key, $peer := .Values.whitelist }}
+            - -whitelist={{ $peer.ip }}
+            {{ end }}
+            - -apiuri={{ .Values.network.api.uri }}
+            - -apiport={{ .Values.network.api.port }}
+            - -iprangefiltering={{ .Values.network.iprange_filtering }}
+            - -datadir=/{{ .Values.node.datadir }}
+            - -defaultwalletname=default
+            - -defaultwalletpassword=default
+            - -unlockdefaultwallet
+            {{ range $key, $peer := .Values.whitelist }}
+            - -addnode= {{- printf "%s:" $peer.ip }}{{$peer.port}}
+            {{ end }}
+
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            {{- range $key, $value := .Values.node.ports }}
+            - name: {{$value.name}}
+              containerPort: {{$value.containerPort}}
+              protocol: {{$value.protocol}}
+            {{ end }}
+
+          livenessProbe:
+            httpGet:
+              path: /api/Diagnostic/GetPeerStatistics
+              {{- with (index .Values.node.ports 2) }}
+              port: {{ .containerPort }}
+              {{- end }}
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+            periodSeconds: 15
+            successThreshold: 1
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/Diagnostic/GetPeerStatistics
+#              port: http
+              {{- with (index .Values.node.ports 2) }}
+              port: {{ .containerPort }}
+              {{- end }}
+            initialDelaySeconds: 10
+            timeoutSeconds: 30
+            periodSeconds: 60
+            successThreshold: 1
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

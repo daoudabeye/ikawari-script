@@ -1,0 +1,120 @@
+version: "3"
+
+services:
+
+  bitcoind:
+    profiles: ["node", "payserver"]
+    container_name: ikpayserver
+    image: petitpapas/ikawarinode:1.0.0
+    mem_limit: 6144m
+    cpus: 1.500
+    healthcheck:
+      test: curl --fail http://localhost:38003/api/Node/status || exit 1
+      interval: 10s
+      retries: 5
+      start_period: 5s
+      timeout: 10s
+    restart: unless-stopped
+    stop_grace_period: 15m
+    command: ["-server=1", "-txindex=1","-mine=1", "-regtest=1", "-rpcport=38002","-port=38001", "-iprangefiltering=0", "-datadir=nodedata", "-rpcallowip=192.168.1.0/24", "-rpcallowip=172.20.0.2/29", "-rpcallowip=154.68.23.240/29", "-whitelist=154.68.23.243", "-whitelist=154.68.23.245", "-whitelist=154.68.23.242", "-whitelist=192.168.1.200", "-whitelist=172.20.0.3", "-whitelist=127.0.0.1", "-rpcbind=0.0.0.0", "-apiuri=http://0.0.0.0:38003", "-rpcuser=rpcuser", "-rpcpassword=rpcikawari", "-defaultwalletname=default", "-defaultwalletpassword=default", "-unlockdefaultwallet"]
+    expose:
+      - "38001"
+      - "38002"
+      - "38003"
+    ports:
+      - "38001:38001"
+      - "38002:38002"
+      - "38003:38003"
+    volumes:
+      - "bitcoin_datadir:/data"
+    networks:
+      ikwnetwork:
+        ipv4_address: 172.20.0.2
+
+  nbxplorer:
+    profiles: ["payserver"]
+    image: petitpapas/nbxplorer
+    restart: always
+    ports:
+      - 32838:32838
+    #build:
+    #  context: .
+    environment:
+      NBXPLORER_NETWORK: ${NBITCOIN_NETWORK:-mainet}
+      NBXPLORER_BIND: 0.0.0.0:32838
+      NBXPLORER_NOAUTH: 1
+      NBXPLORER_EXPOSERPC: 1
+      NBXPLORER_CHAINS: "dcfa"
+      NBXPLORER_DCFARPCURL: http://172.20.0.2:38002
+      NBXPLORER_DCFANODEENDPOINT: 172.20.0.2:38001
+      NBXPLORER_DCFARPCUSER: rpcuser
+      NBXPLORER_DCFARPCPASSWORD: rpcikawari
+      NBXPLORER_RMQHOST: rabbitmq
+      NBXPLORER_RMQVIRTUAL: /
+      NBXPLORER_RMQUSER: guest
+      NBXPLORER_RMQPASS: guest
+      NBXPLORER_RMQTRANEX: NewTransaction
+      NBXPLORER_RMQBLOCKEX: NewBlock
+      NBXPLORER_LBTCRPCURL: http://elementsd-liquid:43783/
+      NBXPLORER_LBTCNODEENDPOINT: elementsd-liquid:39389
+      NBXPLORER_POSTGRES: User ID=postgres;Password=postgres;Application Name=test;Include Error Detail=true;Host=172.20.0.5;Port=5432;Database=postgres
+    volumes:
+      - "nbxplorer_datadir:/datadir"
+      - "bitcoin_datadir:/root/.bitcoin"
+    links:
+      - bitcoind
+      - rabbitmq
+      - postgres
+    networks:
+      ikwnetwork:
+        ipv4_address: 172.20.0.3
+
+  rabbitmq:
+    profiles: ["payserver"]
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - 4369:4369
+      - 5671:5671
+      - 5672:5672
+      - 15672:15672
+    networks:
+      ikwnetwork:
+        ipv4_address: 172.20.0.4
+
+  postgres:
+    profiles: ["payserver"]
+    container_name: postgres
+    restart: always
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres # The PostgreSQL user (useful to connect to the database)
+      POSTGRES_PASSWORD: postgres # The PostgreSQL password (useful to connect to the database)
+      POSTGRES_DB: postgres
+    expose:
+      - "5432"
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data"
+    networks:
+      ikwnetwork:
+        ipv4_address: 172.20.0.5
+volumes:
+  nbxplorer_datadir:
+  bitcoin_datadir:
+  postgres_data:
+
+# Network Address
+# 172.20.0.0 172.20.0.1-172.20.0.14 br 172.20.0.15
+networks:
+  ikwnetwork:
+    external: false
+    name: ikwnetwork
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/28
+          gateway: 172.20.0.1
+  proxy:
+    external: true
+    name: proxy
+

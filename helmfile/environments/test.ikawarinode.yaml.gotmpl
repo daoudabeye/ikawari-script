@@ -1,0 +1,42 @@
+---
+networks:
+  name: main
+  rpc:
+    allowip: 0.0.0.0
+
+global:
+  namespace: ikawari-{{ .networks.name }}
+  imageInfo:
+    imagePullSecrets: []
+    image:
+      registry: ""
+      repository: petitpapas/dcfa-platform
+  config:
+    DB_URL: "postgresql.{{ .networks.name }}.svc.cluster.local:5432"
+  postgres:
+    useExistingDB: false      #set this to true if using pre created user and database
+    install: true
+    adminUsername: "postgres"
+    adminPassword: "ikawari2023"
+    host: "postgresql.{{ .networks.name }}.svc.cluster.local"
+    port: "5432"
+    image:
+      registry: docker.io
+      repository: bitnami/postgresql
+      tag: 15.4.0-debian-11-r24
+      pullPolicy: Always
+    resources: {}
+  mongodb:
+    useExistingDB: false      #set this to true if using pre created user and database
+    install: true
+    rootPassword: root
+    username: "postgres"
+    passwords: "ikawari2023"
+    database: "dcfa_indexer"
+    host: "postgresql.{{ .networks.name }}.svc.cluster.local"
+    image:
+      registry: docker.io
+      repository: bitnami/mongodb
+      tag: 6.0.9-debian-11-r5
+      pullPolicy: Always
+    resources: {}

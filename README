@@ -1,0 +1,9 @@
+running full node with nbxplorer docker compose
+** create .env file with following content
+"NBITCOIN_NETWORK=regtest"
+
+run container:
+docker compose --profile payserver up -d
+
+run node
+docker compose --profile node up -d

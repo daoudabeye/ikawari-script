@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "indexer.fullname" . }}
+  labels:
+    {{- include "indexer.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "indexer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "indexer.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "indexer.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --chain=DCFA
+            - --local
+            - --Indexer:ConnectionString=mongodb://10.1.156.84:27017
+            - --Indexer:RpcDomain=10.1.156.86
+            - --Indexer:RpcUser=rpc_user
+            - --Indexer:RpcPassword=rpc_ikawari
+          env:
+            - name: "ASPNETCORE_ENVIRONMENT"
+              value: "Production"
+            - name: VIRTUAL_HOST
+              value: "crs.indexer.blockcore.net"
+            - name: VIRTUAL_PORT
+              value: "9910"
+            - name: VIRTUAL_PROTO
+              value: "http"
+            - name: VIRTUAL_NETWORK
+              value: "proxy"
+            - name: LETSENCRYPT_HOST
+              value: "crs.indexer.blockcore.net"
+            - name: LETSENCRYPT_EMAIL
+              value: "dmin@blockcore.net"
+            - name: ASPNETCORE_URLS
+              value: "https://+:9910"
+            - name: Logging__LogLevel__Default
+              value: "Debug"
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+          readinessProbe:
+            httpGet:
+              path: /api/stats
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

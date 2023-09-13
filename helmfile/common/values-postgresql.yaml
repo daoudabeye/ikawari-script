@@ -1,0 +1,10 @@
+## See https://github.com/bitnami/charts/blob/master/bitnami/mongodb/values.yaml
+image:
+  tag: "15.4.0-debian-11-r10"
+resources:
+  requests:
+    cpu: "1"
+    memory: "1Gi"
+  limits:
+    cpu: "2"
+    memory: "2Gi"

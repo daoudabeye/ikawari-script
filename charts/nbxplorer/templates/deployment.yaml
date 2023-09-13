@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nbxplorer.fullname" . }}
+  labels:
+    {{- include "nbxplorer.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nbxplorer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "nbxplorer.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "nbxplorer.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: NBXPLORER_NETWORK
+              value: "dcfa-testnet"
+            - name: NBXPLORER_BIND
+              value: "0.0.0.0:32838"
+            - name: NBXPLORER_NOAUTH
+              value: "1"
+            - name: NBXPLORER_EXPOSERPC
+              value: "1"
+            - name: NBXPLORER_CHAINS
+              value: "dcfa"
+            - name: NBXPLORER_DCFARPCURL
+              value: "http://10.1.156.86:35002"
+            - name: NBXPLORER_DCFANODEENDPOINT
+              value: "10.1.156.86:35001"
+            - name: NBXPLORER_DCFARPCUSER
+              value: "rcp_user"
+            - name: NBXPLORER_DCFARPCPASSWORD
+              value: "rpc_ikawari"
+            - name: NBXPLORER_RMQHOST
+              value: "rabbitmq"
+            - name: NBXPLORER_RMQVIRTUAL
+              value: "/"
+            - name: NBXPLORER_RMQUSER
+              value: "guest"
+            - name: NBXPLORER_RMQPASS
+              value: "guest"
+            - name: NBXPLORER_RMQTRANEX
+              value: "NewTransaction"
+            - name: NBXPLORER_RMQBLOCKEX
+              value: "NewBlock"
+            - name: NBXPLORER_LBTCRPCURL
+              value: "http://elementsd-liquid:43783/"
+            - name: NBXPLORER_LBTCNODEENDPOINT
+              value: "elementsd-liquid:39389"
+            - name: NBXPLORER_POSTGRES
+              value: "User ID=postgres;Password=postgres;Application Name=test;Include Error Detail=true;Host=postgres-postgresql.ikawari.svc.cluster.local;Port=5432;Database=postgres"
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 32838
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 32838
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,13 @@
+
+templates:
+  ### Create resulting PVC for dynamic provisoining
+  - |
+    apiVersion: projectcalico.org/v3
+    kind: IPPool
+    metadata:
+      name: ikawari-ip-pool
+    spec:
+      blockSize: 30
+      cidr: 10.10.10.0/24
+      ipipMode: Never
+      natOutgoing: true
